@@ -1,14 +1,21 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml;
 using Newtonsoft.Json;
-using Oxide.Core;
 using UnityEngine;
+using Facepunch;
+using UnityEngine;
+using Oxide.Core;
+using Oxide.Core.Libraries;
+using Oxide.Core.Plugins;
+using Oxide.Core.Libraries.Covalence;
+using Oxide.Game.Rust.Cui;
 
 namespace Oxide.Plugins
 {
-    [Info("ChestWarp", "CEbbinghaus", "1.0.0")]
+    [Info("ChestWarp", "CEbbinghaus", "1.1.0")]
     [Description("Create warp between two chests")]
     class ChestWarp : RustPlugin
     {
@@ -36,7 +43,9 @@ namespace Oxide.Plugins
 			 }
 		}
 
-		[JsonProperty("Dictionary of created warps")]
+		[JsonProperty("Settings")]
+		Dictionary<string, Dictionary<string, bool>> settings = new Dictionary<string, Dictionary<string, bool>>();
+
          public Dictionary<string, Warp> chestWarps = new Dictionary<string, Warp>();
 		 Dictionary<ulong, setup> activeBinds = new Dictionary<ulong, setup>();
         #endregion
@@ -54,7 +63,7 @@ namespace Oxide.Plugins
                 ["PERMISSION"] = "You do not have the permissions to use this Command!",
 				["ENTITY"] = "You arent Looking At a valid Entity",
                 ["GENERATED"] = "Generated new Warp with the id of: ",
-                ["SUCSESS"] = "Finished linking the chest to the warp id: ",
+                ["SUCCSESS"] = "Finished linking the chest to the warp id: ",
                 ["SINGLEWARP"] = "You can only link a single warp to a box",
                 ["SAMEBOX"] = "You cannot Link a Box to Itself",
 				["OWNERSHIP"] = "This Warp Doesnt Belong to you",
@@ -108,7 +117,7 @@ namespace Oxide.Plugins
             if (firstBox == null || secondBox == null){
 				var id = chestWarps.Where(v => v.Value.FirstPoint == entity.net.ID || v.Value.SecondPoint == entity.net.ID).First().Key;
 				chestWarps.Remove(id);
-				SendReply(player, lang.GetMessage("UNMATCHED", this) + id);
+				SendReply(player, lang.GetMessage("UNMATCHED", this, player.UserIDString) + id);
 				return;
 			}
             
@@ -127,39 +136,17 @@ namespace Oxide.Plugins
 
 		void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
 		{
-            PrintToChat("InitiatorPlayer");
 			if (chestWarps.Count(v => v.Value.FirstPoint == entity.net.ID || v.Value.SecondPoint == entity.net.ID) > 0) {
 				var id = chestWarps.Where(v => v.Value.FirstPoint == entity.net.ID || v.Value.SecondPoint == entity.net.ID).First().Key;
 				chestWarps.Remove(id);
-				PrintToChat("Removed Warp with the id of: " + id);
+				//Puts("Removed Warp with the id of: " + id);
 			}
 		}
 
 		void OnPluginLoaded(){
-			PrintToChat("Chest Warp Succsessfully Loaded");
-			permission.RegisterPermission("cw.use", this);
-			permission.RegisterPermission("cw.admin", this);
-			lang.RegisterMessages(new Dictionary<string, string>
-            {
-                ["PERMISSION"] = "You do not have the permissions to use this Command!",
-				["ENTITY"] = "You arent Looking At a valid Entity",
-                ["GENERATED"] = "Generated new Warp with the id of: ",
-                ["SUCCSESS"] = "Finished linking the chest to the warp id: ",
-                ["SINGLEWARP"] = "You can only link a single warp to a box",
-                ["SAMEBOX"] = "You cannot Link a Box to Itself",
-				["OWNERSHIP"] = "This Warp Doesnt Belong to you",
-				["REMOVED"] = "Removed Warp with the id of: ",
-                ["NOWARP"] = "There is no Warp associated with this Box",
-				["UNMATCHED"] = "Removed Unmatched Warp with the id of: ",
-                ["CANCELERR"] = "There is Nothing to Cancel",
-                ["CANCEL"] = "Cancelled Warp Linking with the id of: ",
-				["HELP"] = "Commands Are:" +
-                             "\n /cw add (or just /cw) - Adds a Chest to the current Wap Pairing" +
-                             "\n /cw cancel - Cancels the current Warp Pairing" +
-                             "\n /cw clear - Clears a Chest from a warp" +
-                             "\n /cw help - Displays This",  
-                ["RAY.NULL"] = "You are not looking at a entity!"
-            }, this);
+			permission.RegisterPermission("chestwarp.use", this);
+			permission.RegisterPermission("chestwarp.admin", this);
+
 		}
 
 		#endregion
@@ -169,8 +156,8 @@ namespace Oxide.Plugins
 		[ChatCommand("cw")]
          void cmdWarp(BasePlayer player, string command, string[] args)
         {
-			if (!permission.UserHasPermission(player.UserIDString, "cw.use") && permission.UserHasPermission(player.UserIDString, "cw.admin")) {
-				SendReply(player, lang.GetMessage("PERMISSION", this));
+			if (!permission.UserHasPermission(player.UserIDString, "chestwarp.use") && permission.UserHasPermission(player.UserIDString, "chestwarp.admin")) {
+				SendReply(player, lang.GetMessage("PERMISSION", this, player.UserIDString));
 				return;
 			}
 			if (!activeBinds.ContainsKey(player.userID)) {
@@ -181,19 +168,18 @@ namespace Oxide.Plugins
 			{
 				switch (args[0]) {
 					case "cancel":
-					Puts(activeBinds.Where(v => v.Key == player.userID).Count().ToString());
 						if (activeBinds.Where(v => v.Key == player.userID).First().Value.isActive == false)
 						{
-							SendReply(player, lang.GetMessage("CANCELERR", this));
+							SendReply(player, lang.GetMessage("CANCELERR", this, player.UserIDString));
 							return;
 						}
 						var currentBind = activeBinds.Where(v => v.Key == player.userID).FirstOrDefault().Value;
-						SendReply(player, lang.GetMessage("CANCEL", this) + currentBind.id);
+						SendReply(player, lang.GetMessage("CANCEL", this, player.UserIDString) + currentBind.id);
 						currentBind.isActive = false;
 						return;
 					break;
 					case "help":
-						SendReply(player, lang.GetMessage("HELP", this));
+						SendReply(player, lang.GetMessage("HELP", this, player.UserIDString));
 						return;
 					break;
 				}
@@ -214,43 +200,43 @@ namespace Oxide.Plugins
 				if (chestWarps.Count(v => v.Value.FirstPoint == boxid || v.Value.SecondPoint == boxid) > 0)
 				{
 					var id = chestWarps.Where(v => v.Value.FirstPoint == boxid || v.Value.SecondPoint == boxid).First();
-					if(id.Value.User != player.userID && !permission.UserHasPermission(player.UserIDString, "cw.admin")){
-						SendReply(player, lang.GetMessage("OWNERSHIP", this));
+					if(id.Value.User != player.userID && !permission.UserHasPermission(player.UserIDString, "chestwarp.admin")){
+						SendReply(player, lang.GetMessage("OWNERSHIP", this, player.UserIDString));
 						return;
 					}
-					SendReply(player, lang.GetMessage("REMOVED", this) + id.Key);
+					SendReply(player, lang.GetMessage("REMOVED", this, player.UserIDString) + id.Key);
 					chestWarps.Remove(id.Key);
 				}
 				else
 				{
-					SendReply(player, lang.GetMessage("NOWARP", this));
+					SendReply(player, lang.GetMessage("NOWARP", this, player.UserIDString));
 				}
 				return;
 			}
 			setup playerBind = activeBinds[player.userID];
 			if (chestWarps.Count(i => i.Value.FirstPoint == boxid || i.Value.SecondPoint == boxid) > 0) {
-				SendReply(player, lang.GetMessage("SINGLEWARP", this));
+				SendReply(player, lang.GetMessage("SINGLEWARP", this, player.UserIDString));
 				return;
 			}
 			if (playerBind.isActive)
 			{
 				if (boxid == playerBind.warp.FirstPoint)
 				{
-					SendReply(player, lang.GetMessage("SAMEBOX", this));
+					SendReply(player, lang.GetMessage("SAMEBOX", this, player.UserIDString));
 					return;
 				}
 				playerBind.warp.SecondPoint = hitInfo.GetEntity().net.ID;
 				playerBind.isActive = false;
 				chestWarps.Add(playerBind.id, playerBind.warp);
 				activeBinds[player.userID] = new setup(player.userID);
-				SendReply(player, lang.GetMessage("SUCCSESS", this) + playerBind.id);
+				SendReply(player, lang.GetMessage("SUCCSESS", this, player.UserIDString) + playerBind.id);
 			}
 			else{
 				string id = Guid.NewGuid().ToString("N");
 				playerBind.id = id;
 				playerBind.warp.FirstPoint = hitInfo.GetEntity().net.ID;
 				playerBind.isActive = true;
-				SendReply(player, lang.GetMessage("GENERATED", this) + id);
+				SendReply(player, lang.GetMessage("GENERATED", this, player.UserIDString) + id);
 			}
 			return;
         }
@@ -265,8 +251,8 @@ namespace Oxide.Plugins
 				BaseEntity secondBox = BaseNetworkable.serverEntities.Find(warp.SecondPoint) as BaseEntity;
 				if (firstBox == null || secondBox == null)
 				{
-					Puts("Removed: "+i.Key);
 					chestWarps.Remove(i.Key);
+					//Puts("Removed: " + i.Key);
 				}
 			}
 		}
