@@ -15,7 +15,7 @@ using Oxide.Game.Rust.Cui;
 
 namespace Oxide.Plugins
 {
-    [Info("ChestWarp", "CEbbinghaus", "1.1.0")]
+    [Info("ChestWarp", "CEbbinghaus", "1.1.0", 2836)]
     [Description("Create warp between two chests")]
     class ChestWarp : RustPlugin
     {
