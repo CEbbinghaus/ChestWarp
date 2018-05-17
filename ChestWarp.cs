@@ -15,7 +15,7 @@ using Oxide.Game.Rust.Cui;
 
 namespace Oxide.Plugins
 {
-    [Info("ChestWarp", "CEbbinghaus", "1.1.0", 2836)]
+    [Info("Chest Warp", "CEbbinghaus", "1.1.1", ResourceId = 2836)]
     [Description("Create warp between two chests")]
     class ChestWarp : RustPlugin
     {
@@ -50,14 +50,10 @@ namespace Oxide.Plugins
 		 Dictionary<ulong, setup> activeBinds = new Dictionary<ulong, setup>();
         #endregion
 
-        #region Initialization
+		#region OxideHooks
+        void Unload() => Interface.Oxide.DataFileSystem.WriteObject("ChestWarp/Chests", chestWarps);
 
-         void OnServerInitialized()
-        {
-            if (Interface.Oxide.DataFileSystem.ExistsDatafile("ChestWarp/Chests"))
-                chestWarps = Interface.Oxide.DataFileSystem.ReadObject<Dictionary<string, Warp>>("ChestWarp/Chests");
-            
-            
+		void LoadDefaultMessages(){            
             lang.RegisterMessages(new Dictionary<string, string>
             {
                 ["PERMISSION"] = "You do not have the permissions to use this Command!",
@@ -79,15 +75,15 @@ namespace Oxide.Plugins
                              "\n /cw help - Displays This",  
                 ["RAY.NULL"] = "You are not looking at a entity!"
             }, this);
-        }
+		}
 
+		void Init(){
+			if (Interface.Oxide.DataFileSystem.ExistsDatafile("ChestWarp/Chests"))
+                chestWarps = Interface.Oxide.DataFileSystem.ReadObject<Dictionary<string, Warp>>("ChestWarp/Chests");
 
-         void Unload() => Interface.Oxide.DataFileSystem.WriteObject("ChestWarp/Chests", chestWarps);
-
-		#endregion
-
-		#region OxideHooks
-
+			permission.RegisterPermission("chestwarp.use", this);
+			permission.RegisterPermission("chestwarp.admin", this);
+		}
 		void OnServerSave() {
 			Clean();
 			Interface.Oxide.DataFileSystem.WriteObject("ChestWarp/Chests", chestWarps);
@@ -141,12 +137,6 @@ namespace Oxide.Plugins
 				chestWarps.Remove(id);
 				//Puts("Removed Warp with the id of: " + id);
 			}
-		}
-
-		void OnPluginLoaded(){
-			permission.RegisterPermission("chestwarp.use", this);
-			permission.RegisterPermission("chestwarp.admin", this);
-
 		}
 
 		#endregion
