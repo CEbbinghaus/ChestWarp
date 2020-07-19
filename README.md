@@ -1,6 +1,6 @@
 **Chest Warp** allows you to create warps between two chests. This means when a player opens a chest they will be teleported to the chest connected to it.  
 
-[![PLuginShowcase](https://i.imgur.com/ON2fuyN.png)](https://www.youtube.com/watch?v=w1GS0cam4AI "Chest Warp Plugin Showcase")
+[![PluginShowcase](https://i.imgur.com/ON2fuyN.png)](https://www.youtube.com/watch?v=w1GS0cam4AI "Chest Warp Plugin Showcase")
 
 ## Chat Commands
 
